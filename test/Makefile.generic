@@ -1,0 +1,120 @@
+BINARY=benchmark
+PLAIN=$(BINARY).plain
+CANON=$(BINARY)
+
+LIBS?=
+
+ifdef SPEC_DEFAULTS
+OBJFILES_BC = $(OBJS)
+else
+OBJFILES_BC?= $(shell find . -name \*.c | sed -e "s/\.c/.bc/" ) $(shell find . -name \*.C | sed -e "s/\.C/.bc/" ) $(shell find . -name \*.cpp | sed -e "s/\.cpp/.bc/" )  $(shell find . -name \*.cc | sed -e "s/\.cc/.bc/" )
+endif
+
+BENCH_NAME?=$(shell cd .. && basename `pwd`)
+BENCH_DIR?= ../../$(BENCH_NAME)
+RESULT_FILE?=$(BENCH_NAME).result
+BENCH_ROOT?=../..
+
+.SECONDARY:
+
+-include ../compile_info
+-include ../execInfo
+
+CC?= gcc
+CXX?= g++
+LLVM_CC?= clang
+LLVM_CXX?= clang++
+LLVM_LINK?= llvm-link
+LLVM_OPT?= opt
+NOELLE_OPT?= noelle-load
+
+ARGS?=$(TRAINARGS)
+TESTARGS?=$(REFARGS)
+TESTARGS=$(ARGS)
+PROFILEARGS?=$(TRAINARGS)
+
+PROFILESETUP?=$(SETUP_TRAIN)
+SETUP_TRAIN?=$(SETUP)
+SETUP_REF?=$(SETUP)
+
+PROFILE?=
+OPT?=-O1
+DEBUG?=
+EXTRACHECK?=
+CFLAGS?= -c $(OPT) $(PREPROCESSING_OPTIONS)  $(PREPROCESSOR_OPTIONS) $(PROFILE) $(DEBUG)
+LDFLAGS?= $(PROFILE) $(DEBUG)
+LLVM_CFLAGS?=-O1 -g -c -emit-llvm $(PREPROCESSOR_OPTIONS) $(PREPROCESSING_OPTIONS) $(DEBUG) -Xclang -disable-llvm-passes $(FINAL_CFLAGS) $(FINAL_CXXFLAGS)
+TRANSFORMATIONS_BEFORE_PARALLELIZATION=-mem2reg -simplifycfg -simplifycfg-sink-common=false -instcombine -tailcallelim -loop-simplify -lcssa -licm -loop-unswitch -globalopt -instcombine -ipsccp -gvn -dse -adce -loop-simplify -lcssa -indvars -loop-deletion -instcombine -indvars
+LLVM_LINK_FLAGS?=
+
+HACK=$(BINARY).hack
+HACK2=$(BINARY).hack2
+
+CPP=clang++
+OPT_LEVEL=-O3
+
+canonical : $(CANON).out
+
+#
+# lamp profile
+#
+
+%.lamp.out : %.lamp.exe
+	date
+	$(SETUP)
+	$(PROFILESETUP)
+	./$*.lamp.exe $(PROFILEARGS) >rabbit3 2>&1
+	cp result.lamp.profile $@
+	$(CLEANUP)
+	date
+
+%.lamp.exe : %.bc
+	date
+	rm -f  $*.lamp.out $*.lamp.exe
+	../../lamp-profile $*.bc
+	date
+
+result.lamp.profile: $(CANON).lamp.out
+	cp $< $@
+
+oracle-pdgs: $(CANON).bc result.lamp.profile 
+	$(NOELLE_OPT) $< -load $(LAMP_LIBS_DIR)/libMetadata.so -load $(LAMP_LIBS_DIR)/libLAMPLoad.so\
+		-lamp-oracle-pdg -disable-output
+
+%.o3.bc :%.bc
+	date
+	 $(LLVM_OPT) -O3 $< -o $@
+	date
+
+$(CANON).bc : $(PLAIN).bc
+	$(LLVM_OPT) $(TRANSFORMATIONS_BEFORE_PARALLELIZATION) -loop-simplify -indvars $< -o $@
+	opt $@ -o $@ -load $(LAMP_LIBS_DIR)/libMetadata.so -metadata-namer
+
+$(PLAIN).bc : $(OBJFILES_BC)
+	date
+	$(LLVM_LINK) $(LLVM_LINK_FLAGS) $^ -o $@
+	date
+
+%.bc : %.c
+	 $(LLVM_CC) $(LLVM_CFLAGS) $< -o $@
+	 $(LLVM_OPT) $(TRANSFORMATIONS_BEFORE_PARALLELIZATION) $@ -o $@  
+
+%.bc : %.C
+	 $(LLVM_CC) $(LLVM_CFLAGS) $< -o $@
+	 $(LLVM_OPT) $(TRANSFORMATIONS_BEFORE_PARALLELIZATION) $@ -o $@  
+
+%.bc : %.cpp
+	 $(LLVM_CXX) $(LLVM_CFLAGS) $< -o $@
+	 $(LLVM_OPT) $(TRANSFORMATIONS_BEFORE_PARALLELIZATION) $@ -o $@  
+
+%.bc : %.cc
+	 $(LLVM_CXX) $(LLVM_CFLAGS) $< -o $@
+	 $(LLVM_OPT) $(TRANSFORMATIONS_BEFORE_PARALLELIZATION) $@ -o $@  
+
+%.exe : %.bc
+	 $(LLVM_CXX) -O3 $< -lm -lstdc++ $(QUEUES) $(LAMP) -lrt -o $@
+
+clean :
+	- $(CLEANUP)
+	rm -f *.exe *.s *.o *.ll *.bc *.pdf *.dot  *.dump compare1.out rabbit* seq.out seq_check* parallel.out parallel_* compare.out compare_* check.out check_* $(CANON).compare.out dout.out loops.out auxout.out lcout.out loopProf.out llvmprof.out __targets.txt result.lamp.profile a.out result.specpriv.profile.txt 
+	find . -type f -name '*.bc' -delete

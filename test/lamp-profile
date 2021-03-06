@@ -48,7 +48,6 @@ fi
 
 
 LIBS=" -load $SCAF_LIBS_DIR/libSCAFUtilities.so
-       -load $LAMP_LIBS_DIR/libLAMPLoad.so 
        -load $LAMP_LIBS_DIR/libLAMP.so 
 "
 
