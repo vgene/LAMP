@@ -26,39 +26,20 @@ else()
   message(FATAL_ERROR "Cannot find Noelle, did you export $NOELLE_INSTALL_DIR?")
 endif()
 
-#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g -Weverything")
-#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -Weverything")
-#set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
-
 # Link with LLVM
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
-#add_definitions(
-#-D__STDC_LIMIT_MACROS
-#-D__STDC_CONSTANT_MACROS
-#)
-#link_directories(${LLVM_LIBRARY_DIRS})
 
 # Prepare the pass to be included in the source tree
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
 
-# message(STATUS "CMAKE_CURRENT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}")
-# message(STATUS "CMAKE_CURRENT_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}")
-# message(STATUS "CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}")
-
 # All include files for CPF
-# include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include
-#                     ${CMAKE_CURRENT_BINARY_DIR}/include
-#                     ${CMAKE_INSTALL_PREFIX}/include
-#                     ${SCAF_INSTALL_DIR}/include
-#                     $ENV{LIBERTY_INSTALL_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include
                     ${CMAKE_CURRENT_BINARY_DIR}/include
                     ${CMAKE_INSTALL_PREFIX}/include
                     ${SCAF_INSTALL_DIR}/include
                     ${NOELLE_INSTALL_DIR}/include)
-message(STATUS "Include dirs: ${INCLUDE_DIRECTORIES}")
 
 # Pass
 add_subdirectory(lib)
