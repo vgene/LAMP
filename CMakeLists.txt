@@ -26,6 +26,8 @@ else()
   message(FATAL_ERROR "Cannot find Noelle, did you export $NOELLE_INSTALL_DIR?")
 endif()
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Link with LLVM
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
