@@ -4,6 +4,7 @@
 
 #include "scaf/MemoryAnalysisModules/Introspection.h"
 #include "liberty/LAMP/LampOraclePDG.h"
+#include "liberty/EdgeProf/EdgeProfOraclePDG.h"
 
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -218,6 +219,8 @@ namespace liberty
           // No flow.
           result = LoopAA::ModRefResult(result & ~ LoopAA::Mod);
           ++numNoForwardFlow;
+          LLVM_DEBUG(
+              errs() << "LoopAA::Before -- No dep between " << *B << " and " << *A << "\n");
         }
       }
 
@@ -230,6 +233,8 @@ namespace liberty
           // No flow
           result = LoopAA::ModRefResult(result & ~ LoopAA::Mod);
           ++numNoForwardFlow;
+          LLVM_DEBUG(
+              errs() << "LoopAA::Same -- No dep between " << *B << " and " << *A << "\n");
         }
       }
     }
@@ -306,6 +311,7 @@ namespace liberty
   void LampOraclePDG::getAnalysisUsage(AnalysisUsage &au) const {
     au.addRequired< LAMPLoadProfile >();
     au.addRequired< LoopInfoWrapperPass >();
+    au.addRequired< EdgeProfOraclePDG >();
     au.setPreservesAll();
   }
 
@@ -353,10 +359,10 @@ namespace liberty
     auto *fcn = header->getParent();
 
     std::string pdgDotName = "pdg_" + fcn->getName().str() + "_" + header->getName().str() + ".dot";
-    
+
     // dump pdg
     DGPrinter::writeClusteredGraph<PDG, Value>(pdgDotName, pdg.get());
-    
+
     return true;
   }
 
@@ -425,6 +431,9 @@ namespace liberty
         }
       }
     }
+
+    auto &edgeprof = getAnalysis<EdgeProfOraclePDG>();
+    edgeprof.updateEdgeProfOraclePDG(loop, pdg.get());
 
     return pdg;
   }
